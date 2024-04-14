@@ -2,9 +2,11 @@ import pygame
 import sys
 import numpy as np
 from button import Button
+import random
 
 pygame.init()
 
+# COLORS
 BG = pygame.Color("#203972")
 BLUE = pygame.Color("#3E5AAA")
 H_BLUE = pygame.Color("#6477AF")
@@ -15,45 +17,78 @@ YELLOW = pygame.Color("#FFF36D")
 H_YELLOW = pygame.Color("#EBE6B6")
 WHITE = pygame.Color("#FFFFFF")
 
+# GAME VARIABLES
 ROW_COUNT = 5
 COLUMN_COUNT = 5
 SQUARESIZE = 110
 board_width = COLUMN_COUNT * SQUARESIZE
 board_height = (ROW_COUNT+1) * SQUARESIZE
 RADIUS = int(SQUARESIZE/2 - 40)
+X = 3 # Place holder for null space, 0 = open space, 1 = player 1, 2 = player 2
+PLAYER_PIECE = 1
+AI_PIECE = 2
+PLAYER_TURN = 0
+AI_TURN = 1
 
+# SCREEN VARIABLES
 screen_width = 1280
 screen_height = 720
-
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("MINIMAX AI")
 
+# GAME FUNCTIONS
 def create_board():
-    board = [
-        [0, 3, 0, 3, 0],
-        [3, 0, 0, 0, 3],
-        [0, 0, 3, 0, 0],
-        [3, 0, 0, 0, 3],
-        [0, 3, 0, 3, 0]
-    ]
-
+    board = np.array([
+        [0, X, 0, X, 0],
+        [X, 0, 0, 0, X],
+        [0, 0, X, 0, 0],
+        [X, 0, 0, 0, X],
+        [0, X, 0, X, 0]
+    ])
     return board
 
 def print_board(board):
     print(board)
 
-def draw_lines_between_zeros(board):
+def is_valid_location(board, row, col):
+    return board[row][col] == 0
+
+def drop_piece(board, row, col, player):
+    if player == 1:
+        board[row][col] = 1
+    else: 
+        board[row][col] = 2
+
+def draw_lines():
     width_center = (screen_width / 2) - (board_width / 2)
-    zero_positions = [(r, c) for r in range(ROW_COUNT) for c in range(COLUMN_COUNT) if board[r][c] == 0]
-
-    for pos1 in zero_positions:
-        for pos2 in zero_positions:
-            if pos1 != pos2:
-                # Check if pos1 and pos2 are adjacent
-                if abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1]) == 1:
-                    pygame.draw.line(screen, WHITE, (pos1[1] * SQUARESIZE + SQUARESIZE / 2 + width_center, board_height - pos1[0] * SQUARESIZE - SQUARESIZE / 2),
-                                     (pos2[1] * SQUARESIZE + SQUARESIZE / 2 + width_center, board_height - pos2[0] * SQUARESIZE - SQUARESIZE / 2), 5)
-
+    # Coordinates of the outside positions
+    outside_positions = [
+        ((0, 0), (0, 4)),
+        ((0, 0), (4, 0)),
+        ((4, 0), (4, 4)),
+        ((0, 4), (4, 4))
+    ]
+    # Draw lines between the outside positions
+    for pos1, pos2 in outside_positions:
+        pygame.draw.line(screen, WHITE, 
+                        (pos1[1] * SQUARESIZE + SQUARESIZE / 2 + width_center, pos1[0] * SQUARESIZE + SQUARESIZE / 2 + SQUARESIZE),
+                        (pos2[1] * SQUARESIZE + SQUARESIZE / 2 + width_center, pos2[0] * SQUARESIZE + SQUARESIZE / 2 + SQUARESIZE), 5)
+    # Coordinates of the inside positions
+    inside_positions = [
+        ((1, 1), (1, 3)),
+        ((1, 1), (3, 1)),
+        ((3, 1), (3, 3)),
+        ((1, 3), (3, 3)),
+        ((0, 2), (1, 2)),
+        ((2, 0), (2, 1)),
+        ((2, 3), (2, 4)),
+        ((3, 2), (4, 2))   
+    ]
+    # Draw lines between the inside positions
+    for pos1, pos2 in inside_positions:
+        pygame.draw.line(screen, WHITE, 
+                        (pos1[1] * SQUARESIZE + SQUARESIZE / 2 + width_center, pos1[0] * SQUARESIZE + SQUARESIZE / 2 + SQUARESIZE),
+                        (pos2[1] * SQUARESIZE + SQUARESIZE / 2 + width_center, pos2[0] * SQUARESIZE + SQUARESIZE / 2 + SQUARESIZE), 5)
 
 def draw_board(board):
     width_center = (screen_width/2) - (board_width/2)
@@ -64,18 +99,25 @@ def draw_board(board):
                 pygame.draw.rect(screen, BLUE, ((c*SQUARESIZE)+width_center, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
             else:
                 pygame.draw.rect(screen, H_BLUE, ((c*SQUARESIZE)+width_center, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
+    # Lines
+    draw_lines()
+    # Pieces
     for c in range(COLUMN_COUNT):
         for r in range(ROW_COUNT):		
             if board[r][c] == 0:
-                pygame.draw.circle(screen, WHITE, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, board_height-int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
+                pygame.draw.circle(screen, WHITE, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
             elif board[r][c] == 1: 
-                pygame.draw.circle(screen, YELLOW, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, board_height-int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
-    draw_lines_between_zeros(board)
+                pygame.draw.circle(screen, YELLOW, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
+            elif board[r][c] == 2:
+                pygame.draw.circle(screen, RED, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
+    
     pygame.display.update()
 
 def six_men_morris():
     screen.fill(BLACK)
     playing = True
+    width_center = (screen_width/2) - (board_width/2) # Starting point of board width
+    turn = random.randint(PLAYER_TURN, AI_TURN)
     board = create_board()
     print_board(board)
     draw_board(board)
@@ -98,6 +140,23 @@ def six_men_morris():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
+                posx = event.pos[0] # X coordinate
+                posy = event.pos[1] # Y coordinate
+                # Will only accept x and y coordinates within the board parameters
+                if width_center <= posx <= (width_center + board_width) and SQUARESIZE <= posy <= (board_height):
+                    col = int((posx - width_center) // SQUARESIZE)
+                    row = int((posy - SQUARESIZE) // SQUARESIZE)
+                    # If the square is clicked it will highlight, else it will erase the highlight
+                    if is_valid_location(board, row, col):
+                        print("(", row, col, ")")
+                        if turn == PLAYER_TURN:
+                            drop_piece(board, row, col, PLAYER_PIECE)
+                            turn += 1
+                            turn = turn % 2
+                        elif turn == AI_TURN:
+                            drop_piece(board, row, col, AI_PIECE)
+                            turn += 1
+                            turn = turn % 2
                 if MENU_BUTTON.checkForInput(GAME_MOUSE_POS):
                     main()
                 if RESET_BUTTON.checkForInput(GAME_MOUSE_POS):
@@ -105,11 +164,13 @@ def six_men_morris():
                 if QUIT_BUTTON.checkForInput(GAME_MOUSE_POS):
                     pygame.quit()
                     sys.exit()
+
+                print_board(board)
+                draw_board(board)
+
         pygame.display.update()
 
-
-
-# Frontend functions
+#  MENU FUNCTIONS
 def get_font(size, type):
     if type == 1:
         return pygame.font.SysFont("Franklin Gothic Heavy", size)
