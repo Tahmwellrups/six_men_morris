@@ -37,7 +37,7 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("MINIMAX AI")
 
 # GAME FUNCTIONS
-def create_board():
+def create_board(): # X = null space
     board = np.array([
         [0, X, 0, X, 0],
         [X, 0, 0, 0, X],
@@ -95,7 +95,7 @@ def draw_board(board):
     # Board
     for c in range(COLUMN_COUNT):
         for r in range(ROW_COUNT):
-            if board[r][c] != 3:
+            if board[r][c] != X: # Which is the null space
                 pygame.draw.rect(screen, BLUE, ((c*SQUARESIZE)+width_center, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
             else:
                 pygame.draw.rect(screen, H_BLUE, ((c*SQUARESIZE)+width_center, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
@@ -110,7 +110,6 @@ def draw_board(board):
                 pygame.draw.circle(screen, YELLOW, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
             elif board[r][c] == 2:
                 pygame.draw.circle(screen, RED, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
-    
     pygame.display.update()
 
 def six_men_morris():
@@ -118,6 +117,10 @@ def six_men_morris():
     playing = True
     width_center = (screen_width/2) - (board_width/2) # Starting point of board width
     turn = random.randint(PLAYER_TURN, AI_TURN)
+    MAX_PIECES = 6
+    PLAYER_COUNT = 0
+    AI_COUNT = 0
+
     board = create_board()
     print_board(board)
     draw_board(board)
@@ -149,18 +152,21 @@ def six_men_morris():
                     # If the square is clicked it will highlight, else it will erase the highlight
                     if is_valid_location(board, row, col):
                         print("(", row, col, ")")
-                        if turn == PLAYER_TURN:
+                        if turn == PLAYER_TURN and PLAYER_COUNT < MAX_PIECES: 
                             drop_piece(board, row, col, PLAYER_PIECE)
+                            PLAYER_COUNT += 1
                             turn += 1
                             turn = turn % 2
-                        elif turn == AI_TURN:
+                        elif turn == AI_TURN and AI_COUNT < MAX_PIECES:
                             drop_piece(board, row, col, AI_PIECE)
+                            AI_COUNT += 1
                             turn += 1
                             turn = turn % 2
                 if MENU_BUTTON.checkForInput(GAME_MOUSE_POS):
                     main()
                 if RESET_BUTTON.checkForInput(GAME_MOUSE_POS):
-                    pass
+                    board = create_board()
+                    turn = random.randint(PLAYER_TURN, AI_TURN)
                 if QUIT_BUTTON.checkForInput(GAME_MOUSE_POS):
                     pygame.quit()
                     sys.exit()
