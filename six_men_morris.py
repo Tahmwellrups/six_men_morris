@@ -7,15 +7,15 @@ import random
 pygame.init()
 
 # COLORS
-BG = pygame.Color("#203972")
-BLUE = pygame.Color("#3E5AAA")
-H_BLUE = pygame.Color("#6477AF")
+BG = pygame.Color("#32405C")
+GREEN = pygame.Color("#009F92")
+D_GREEN = pygame.Color("#00777B")
 BLACK = pygame.Color("#101B3B")
-RED = pygame.Color("#FF7276")
+RED = pygame.Color("#FE9E84")
 H_RED = pygame.Color("#FFAAAC")
-YELLOW = pygame.Color("#FFF36D")
+BLUE = pygame.Color("#6FA7FA")
 H_YELLOW = pygame.Color("#EBE6B6")
-WHITE = pygame.Color("#FFFFFF")
+WHITE = pygame.Color("#F7E7BE")
 
 # GAME VARIABLES
 ROW_COUNT = 5
@@ -96,9 +96,9 @@ def draw_board(board):
     for c in range(COLUMN_COUNT):
         for r in range(ROW_COUNT):
             if board[r][c] != X: # Which is the null space
-                pygame.draw.rect(screen, BLUE, ((c*SQUARESIZE)+width_center, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
+                pygame.draw.rect(screen, GREEN, ((c*SQUARESIZE)+width_center, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
             else:
-                pygame.draw.rect(screen, H_BLUE, ((c*SQUARESIZE)+width_center, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
+                pygame.draw.rect(screen, D_GREEN, ((c*SQUARESIZE)+width_center, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
     # Lines
     draw_lines()
     # Pieces
@@ -107,13 +107,13 @@ def draw_board(board):
             if board[r][c] == 0:
                 pygame.draw.circle(screen, WHITE, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
             elif board[r][c] == 1: 
-                pygame.draw.circle(screen, YELLOW, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
+                pygame.draw.circle(screen, BLUE, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS+15)
             elif board[r][c] == 2:
-                pygame.draw.circle(screen, RED, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
+                pygame.draw.circle(screen, RED, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS+15)
     pygame.display.update()
 
 def six_men_morris():
-    screen.fill(BLACK)
+    screen.fill(BG)
     playing = True
     width_center = (screen_width/2) - (board_width/2) # Starting point of board width
     turn = random.randint(PLAYER_TURN, AI_TURN)
@@ -128,11 +128,11 @@ def six_men_morris():
     while playing:
         GAME_MOUSE_POS = pygame.mouse.get_pos()
         MENU_BUTTON = Button(image=None, pos=(75,30), 
-                            text_input="MENU", font=get_font(29, 1), base_color=WHITE, hovering_color=H_BLUE)
+                            text_input="MENU", font=get_font(29, 1), base_color=WHITE, hovering_color=RED)
         RESET_BUTTON = Button(image=None, pos=(75, screen_height-30), 
-                            text_input="RESET", font=get_font(29, 1), base_color=WHITE, hovering_color=H_BLUE)
+                            text_input="RESET", font=get_font(29, 1), base_color=WHITE, hovering_color=RED)
         QUIT_BUTTON = Button(image=None, pos=(screen_width-75, screen_height-30), 
-                            text_input="QUIT", font=get_font(29, 1), base_color=RED, hovering_color=H_RED)
+                            text_input="QUIT", font=get_font(29, 1), base_color=WHITE, hovering_color=RED)
         
         for button in [MENU_BUTTON, RESET_BUTTON, QUIT_BUTTON]:
             button.changeColor(GAME_MOUSE_POS)
