@@ -31,6 +31,7 @@ AI_PIECE = 2
 H_AI_PIECE = 12 # Highlighted AI piece
 PLAYER_TURN = 0
 AI_TURN = 1
+highlighted_piece = None
 
 # SCREEN VARIABLES
 screen_width = 1280
@@ -52,15 +53,34 @@ def create_board(): # X = null space
 def print_board(board):
     print(board)
 
+def drop_piece(board, row, col, piece):
+    board[row][col] = piece
+
+def drop_piece_adjacent(board, row, col, piece, desired_position=None):
+    adjacent_positions = [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)]
+    if desired_position not in adjacent_positions:
+        return False  # Reject the move if the desired position is not adjacent
+    r, c = desired_position
+    if 0 <= r < ROW_COUNT and 0 <= c < COLUMN_COUNT and board[r][c] == 0 and board[r][c] != 3:
+        board[r][c] = piece  
+    return False  
+
 def is_valid_location(board, row, col):
     return board[row][col] == 0
 
-def drop_piece(board, row, col, piece):
-    board[row][col] = piece
-    
-
 def is_occupied(board, row, col):
     return board[row][col] != 0
+
+def is_adjacent_empty(board, row, col):
+    adjacent_positions = [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)]
+    for r, c in adjacent_positions:
+        if 0 <= r < ROW_COUNT and 0 <= c < COLUMN_COUNT and board[r][c] == 0:
+            return True
+    return False
+
+def highlt_existing(board, piece):
+    if any(piece in sublist for sublist in board):
+        return True
 
 def draw_lines():
     width_center = (screen_width / 2) - (board_width / 2)
@@ -127,6 +147,7 @@ def six_men_morris():
     MAX_PIECES = 6
     PLAYER_COUNT = 0
     AI_COUNT = 0
+    highlighted_piece = None
 
     board = create_board()
     print_board(board)
@@ -157,40 +178,68 @@ def six_men_morris():
                     col = int((posx - width_center) // SQUARESIZE)
                     row = int((posy - SQUARESIZE) // SQUARESIZE)
                     # If the square is clicked it will highlight, else it will erase the highlight
-                    if turn == PLAYER_TURN:
-                        print("(", row, col, ")")
+                    if turn == PLAYER_TURN:                        
                         if is_valid_location(board, row, col):
-                            if PLAYER_COUNT < MAX_PIECES: 
+                            print("(", row, col, ")")
+                            if PLAYER_COUNT < MAX_PIECES:
                                 drop_piece(board, row, col, PLAYER_PIECE)
                                 PLAYER_COUNT += 1
                                 turn += 1
-                                turn = turn % 2 
+                                turn = turn % 2
+                            elif highlighted_piece is not None:  # If a piece is highlighted
+                                temp_board = np.zeros((ROW_COUNT, COLUMN_COUNT))
+                                if is_adjacent_empty(temp_board, highlighted_piece[0], highlighted_piece[1]):
+                                    print("Print here if adjacent empty")
+                                    # Move the highlighted piece to the new location
+                                    board[highlighted_piece[0]][highlighted_piece[1]] = 0
+                                    drop_piece_adjacent(board, row, col, PLAYER_PIECE, desired_position=(highlighted_piece[0], highlighted_piece[1]))
+                                    highlighted_piece = None  # Clear the highlighted piece location
+                                    turn += 1
+                                    turn = turn % 2
+
                         elif is_occupied(board, row, col):
                             if board[row][col] == PLAYER_PIECE:
                                 print("Clicked on player piece")
-                                drop_piece(board, row, col, H_PLAYER_PIECE)
+                                if not highlt_existing(board, H_PLAYER_PIECE):
+                                    drop_piece(board, row, col, H_PLAYER_PIECE)
+                                    highlighted_piece = (row, col)  # Store the location of the highlighted piece
                             elif board[row][col] == H_PLAYER_PIECE:
                                 print("Clicked on highlighted player piece")
                                 drop_piece(board, row, col, PLAYER_PIECE)
+                                highlighted_piece = None  # Clear the highlighted piece location
                           
                             
                     elif turn == AI_TURN:
                         if is_valid_location(board, row, col):
-                            if AI_COUNT < MAX_PIECES: 
+                            print("(", row, col, ")")
+                            if AI_COUNT < MAX_PIECES:
                                 drop_piece(board, row, col, AI_PIECE)
                                 AI_COUNT += 1
                                 turn += 1
-                                turn = turn % 2 
+                                turn = turn % 2
+                            elif highlighted_piece is not None:  # If a piece is highlighted
+                                temp_board = np.zeros((ROW_COUNT, COLUMN_COUNT))
+                                if is_adjacent_empty(temp_board, highlighted_piece[0], highlighted_piece[1]):
+                                    print("Print here if adjacent empty")
+                                    # Move the highlighted piece to the new location
+                                    board[highlighted_piece[0]][highlighted_piece[1]] = 0
+                                    drop_piece_adjacent(board, row, col, AI_PIECE, desired_position=(highlighted_piece[0], highlighted_piece[1]))
+                                    highlighted_piece = None  # Clear the highlighted piece location
+                                    turn += 1
+                                    turn = turn % 2
+
                         elif is_occupied(board, row, col):
                             if board[row][col] == AI_PIECE:
                                 print("Clicked on AI piece")
-                                drop_piece(board, row, col, H_AI_PIECE)
+                                if not highlt_existing(board, H_AI_PIECE):
+                                    drop_piece(board, row, col, H_AI_PIECE)
+                                    highlighted_piece = (row, col)  # Store the location of the highlighted piece
                             elif board[row][col] == H_AI_PIECE:
                                 print("Clicked on highlighted AI piece")
                                 drop_piece(board, row, col, AI_PIECE)
-                          
+                                highlighted_piece = None  # Clear the highlighted piece location               
                        
-
+                
                 if MENU_BUTTON.checkForInput(GAME_MOUSE_POS):
                     main()
                 if RESET_BUTTON.checkForInput(GAME_MOUSE_POS):
