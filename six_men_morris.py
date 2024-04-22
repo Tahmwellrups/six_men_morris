@@ -12,9 +12,9 @@ GREEN = pygame.Color("#009F92")
 D_GREEN = pygame.Color("#00777B")
 BLACK = pygame.Color("#101B3B")
 RED = pygame.Color("#FE9E84")
-H_RED = pygame.Color("#FFAAAC")
+H_RED = pygame.Color("#FDC4B4")
 BLUE = pygame.Color("#6FA7FA")
-H_YELLOW = pygame.Color("#EBE6B6")
+H_BLUE = pygame.Color("#A1C5F9")
 WHITE = pygame.Color("#F7E7BE")
 
 # GAME VARIABLES
@@ -26,7 +26,9 @@ board_height = (ROW_COUNT+1) * SQUARESIZE
 RADIUS = int(SQUARESIZE/2 - 40)
 X = 3 # Place holder for null space, 0 = open space, 1 = player 1, 2 = player 2
 PLAYER_PIECE = 1
+H_PLAYER_PIECE = 11 # Highlighted player piece
 AI_PIECE = 2
+H_AI_PIECE = 12 # Highlighted AI piece
 PLAYER_TURN = 0
 AI_TURN = 1
 
@@ -53,11 +55,12 @@ def print_board(board):
 def is_valid_location(board, row, col):
     return board[row][col] == 0
 
-def drop_piece(board, row, col, player):
-    if player == 1:
-        board[row][col] = 1
-    else: 
-        board[row][col] = 2
+def drop_piece(board, row, col, piece):
+    board[row][col] = piece
+    
+
+def is_occupied(board, row, col):
+    return board[row][col] != 0
 
 def draw_lines():
     width_center = (screen_width / 2) - (board_width / 2)
@@ -108,8 +111,12 @@ def draw_board(board):
                 pygame.draw.circle(screen, WHITE, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
             elif board[r][c] == 1: 
                 pygame.draw.circle(screen, BLUE, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS+15)
+            elif board[r][c] == 11:
+                pygame.draw.circle(screen, H_BLUE, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS+15)
             elif board[r][c] == 2:
                 pygame.draw.circle(screen, RED, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS+15)
+            elif board[r][c] == 12:
+                pygame.draw.circle(screen, H_RED, ((int(c*SQUARESIZE+SQUARESIZE/2))+width_center, SQUARESIZE+int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS+15)   
     pygame.display.update()
 
 def six_men_morris():
@@ -150,23 +157,46 @@ def six_men_morris():
                     col = int((posx - width_center) // SQUARESIZE)
                     row = int((posy - SQUARESIZE) // SQUARESIZE)
                     # If the square is clicked it will highlight, else it will erase the highlight
-                    if is_valid_location(board, row, col):
+                    if turn == PLAYER_TURN:
                         print("(", row, col, ")")
-                        if turn == PLAYER_TURN and PLAYER_COUNT < MAX_PIECES: 
-                            drop_piece(board, row, col, PLAYER_PIECE)
-                            PLAYER_COUNT += 1
-                            turn += 1
-                            turn = turn % 2
-                        elif turn == AI_TURN and AI_COUNT < MAX_PIECES:
-                            drop_piece(board, row, col, AI_PIECE)
-                            AI_COUNT += 1
-                            turn += 1
-                            turn = turn % 2
+                        if is_valid_location(board, row, col):
+                            if PLAYER_COUNT < MAX_PIECES: 
+                                drop_piece(board, row, col, PLAYER_PIECE)
+                                PLAYER_COUNT += 1
+                                turn += 1
+                                turn = turn % 2 
+                        elif is_occupied(board, row, col):
+                            if board[row][col] == PLAYER_PIECE:
+                                print("Clicked on player piece")
+                                drop_piece(board, row, col, H_PLAYER_PIECE)
+                            elif board[row][col] == H_PLAYER_PIECE:
+                                print("Clicked on highlighted player piece")
+                                drop_piece(board, row, col, PLAYER_PIECE)
+                          
+                            
+                    elif turn == AI_TURN:
+                        if is_valid_location(board, row, col):
+                            if AI_COUNT < MAX_PIECES: 
+                                drop_piece(board, row, col, AI_PIECE)
+                                AI_COUNT += 1
+                                turn += 1
+                                turn = turn % 2 
+                        elif is_occupied(board, row, col):
+                            if board[row][col] == AI_PIECE:
+                                print("Clicked on AI piece")
+                                drop_piece(board, row, col, H_AI_PIECE)
+                            elif board[row][col] == H_AI_PIECE:
+                                print("Clicked on highlighted AI piece")
+                                drop_piece(board, row, col, AI_PIECE)
+                          
+                       
+
                 if MENU_BUTTON.checkForInput(GAME_MOUSE_POS):
                     main()
                 if RESET_BUTTON.checkForInput(GAME_MOUSE_POS):
                     board = create_board()
                     turn = random.randint(PLAYER_TURN, AI_TURN)
+                    PLAYER_COUNT, AI_COUNT = 0, 0
                 if QUIT_BUTTON.checkForInput(GAME_MOUSE_POS):
                     pygame.quit()
                     sys.exit()
