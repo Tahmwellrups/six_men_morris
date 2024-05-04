@@ -14,6 +14,7 @@ H_GREEN = pygame.Color("#00BFA5")
 D_GREEN = pygame.Color("#00777B")
 BLACK = pygame.Color("#101B3B")
 RED = pygame.Color("#FE9E84")
+D_RED = pygame.Color("#D1495B")
 H_RED = pygame.Color("#FDC4B4")
 BLUE = pygame.Color("#6FA7FA")
 H_BLUE = pygame.Color("#A1C5F9")
@@ -498,6 +499,8 @@ def remove_piece(board, piece):
         pygame.display.update()
     
 def ai_remove_piece(board, piece, phase):
+    width_center = (screen_width/2) - (board_width/2) # Starting point of board width
+    pygame.draw.rect(screen, BG, (width_center, 60, board_width, SQUARESIZE))
     piece_to_remove = find_best_piece_to_remove(board, piece, phase)
     if piece_to_remove is not None:
         row, col = piece_to_remove
@@ -536,7 +539,7 @@ def game_over_screen(board, winner):
         MENU_BUTTON = Button(image=None, pos=(screen_width//2 - 75, screen_height - 30), 
                             text_input="MENU", font=get_font(30, 1), base_color=WHITE, hovering_color=RED)
         QUIT_BUTTON = Button(image=None, pos=(screen_width//2 + 75, screen_height - 30), 
-                            text_input="QUIT", font=get_font(30, 1), base_color=WHITE, hovering_color=RED)
+                            text_input="QUIT", font=get_font(30, 1), base_color=D_RED, hovering_color=RED)
         
         for button in [MENU_BUTTON, QUIT_BUTTON]:
             button.changeColor(GAME_MOUSE_POS)
@@ -661,7 +664,7 @@ def six_men_morris():
         RESET_BUTTON = Button(image=None, pos=(75, screen_height-30), 
                             text_input="RESET", font=get_font(29, 1), base_color=WHITE, hovering_color=RED)
         QUIT_BUTTON = Button(image=None, pos=(screen_width-75, screen_height-30), 
-                            text_input="QUIT", font=get_font(29, 1), base_color=RED, hovering_color=H_RED)
+                            text_input="QUIT", font=get_font(29, 1), base_color=D_RED, hovering_color=H_RED)
         
         for button in [MENU_BUTTON, RESET_BUTTON, QUIT_BUTTON]:
             button.changeColor(GAME_MOUSE_POS)
@@ -777,14 +780,7 @@ def six_men_morris():
                 if MENU_BUTTON.checkForInput(GAME_MOUSE_POS):
                     main()
                 if RESET_BUTTON.checkForInput(GAME_MOUSE_POS):
-                    board = create_board()
-                    turn = random.randint(PLAYER_TURN, AI_TURN)
-                    PLAYER_COUNT, AI_COUNT = 0, 0
-                    PLAYER_MAX_PIECES, AI_MAX_PIECES = 6, 6
-                    highlighted_piece = None
-                    phase_2 = False
-                    phase = 0
-
+                    six_men_morris()
                 if QUIT_BUTTON.checkForInput(GAME_MOUSE_POS):
                     pygame.quit()
                     sys.exit()                     
