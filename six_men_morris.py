@@ -3,7 +3,6 @@ import sys
 import numpy as np
 from button import Button
 import random
-import time
 import math
 
 pygame.init()
@@ -254,14 +253,14 @@ def evaluate_board(board, player_piece, opponent_piece, phase):
     # Evaluate board state
     player_score += player_pieces * 10  
     player_score += player_actual_mills * 50  
-    player_score += player_potential_mills * 100  
-    player_score += player_threats * 100  
+    player_score += player_potential_mills * 40  
+    player_score += player_threats * 30  
     player_score += positional_advantage(board, player_piece)  
     player_score += adaptability(board, player_piece, phase)  
     
     opponent_score += opponent_pieces * 10
     opponent_score += opponent_actual_mills * 50
-    opponent_score += opponent_potential_mills * 100
+    opponent_score += opponent_potential_mills * 40
     opponent_score += opponent_threats * 30
     opponent_score += positional_advantage(board, opponent_piece)
     opponent_score += adaptability(board, opponent_piece, phase)
@@ -276,12 +275,12 @@ def count_actual_mills(board, piece):
     # Check rows
     for row in range(ROW_COUNT):
         if row != 2 and [board[row][c] for c in range(ROW_COUNT)].count(piece) == 3:
-            actual_mills += 50
+            actual_mills += 1
             
     # Check columns
     for col in range(COLUMN_COUNT):
        if col != 2 and [board[r][col] for r in range(COLUMN_COUNT)].count(piece) == 3:
-            actual_mills += 50
+            actual_mills += 1
     return actual_mills
 
 def count_potential_mills(board, piece):
@@ -295,7 +294,7 @@ def count_potential_mills(board, piece):
                 board[r][c] = piece
                 # Check if this forms a mill
                 if forms_mill(board, r, c, piece):
-                    potential_mills += 100
+                    potential_mills -= 1
                 # Remove the piece from the position
                 board[r][c] = 0
     return potential_mills
@@ -321,7 +320,7 @@ def count_threats(board, piece):
             if board[r][c] == 0:
                 # Check if placing a piece at this position forms a threat
                 if forms_threat(board, r, c, piece):
-                    threats += 100
+                    threats += 1
     return threats
 
 def forms_threat(board, row, col, piece):
@@ -338,24 +337,31 @@ def forms_threat(board, row, col, piece):
 def calculate_positional_weights(board):
     weights = np.array([
         [50, X, 30, X, 50],
-        [X, 18, 8, 18, X],
-        [30, 8, X, 8, 30],
-        [X, 18, 8, 18, X],
+        [X, 18, 10, 18, X],
+        [30, 10, X, 10, 30],
+        [X, 18, 10, 18, X],
         [50, X, 30, X, 50]
     ])
     
     # Assign weights based on adjacency to opponent's pieces
-    for r in range(ROW_COUNT):
-        for c in range(COLUMN_COUNT):
-            if board[r, c] == 0:  # Check only empty positions
-                if r > 0 and board[r - 1, c] == PLAYER_PIECE:
-                    weights[r, c] += 1
-                if r < 4 and board[r + 1, c] == PLAYER_PIECE:
-                    weights[r, c] += 1
-                if c > 0 and board[r, c - 1] == PLAYER_PIECE:
-                    weights[r, c] += 1
-                if c < 4 and board[r, c + 1] == PLAYER_PIECE:
-                    weights[r, c] += 1
+    for row in range(ROW_COUNT):
+        for col in range(COLUMN_COUNT):
+            if board[row, col] == 0:  # Check only empty positions
+                corners = [(0, 0), (0, 4), (4, 0), (4, 4)] 
+                vertical_middle_corners = [(0, 2), (4, 2)]
+                horizontal_middle_corners = [(2, 0), (2, 4)]
+                if (row, col) in corners: # We'll be checking two steps away from the corner since, it's blocked by null space
+                    adjacent_positions = [(row - 2, col), (row + 2, col), (row, col - 2), (row, col + 2)]
+                elif (row, col) in vertical_middle_corners: # We'll be checking two steps away from the vertical middle corners
+                    adjacent_positions = [(row - 1, col), (row + 1, col), (row, col - 2), (row, col + 2)]
+                elif (row, col) in horizontal_middle_corners: # We'll be checking two steps away from the horizontal middle corners
+                    adjacent_positions = [(row - 2, col), (row + 2, col), (row, col - 1), (row, col + 1)]
+                else:
+                    adjacent_positions = [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)]
+
+                for r, c in adjacent_positions:
+                    if 0 <= r < ROW_COUNT and 0 <= c < COLUMN_COUNT and board[r][c] == PLAYER_PIECE:
+                        weights[row][col] += 1
     return weights
 
 def positional_advantage(board, piece):
@@ -381,6 +387,25 @@ def adaptability(board, piece, phase):
                 else:
                     adaptability_score += len(global_piece_moves(board, piece))
     return adaptability_score
+
+def find_best_piece_to_remove(board, opponent_piece, phase):
+    # Initialize variables to keep track of the best piece and its score
+    best_piece = None
+    best_score = -math.inf
+    
+    for r in range(ROW_COUNT):
+        for c in range(COLUMN_COUNT):
+            if board[r][c] == opponent_piece and not is_mill(board, r, c, opponent_piece):
+                # Simulate removing the opponent's piece from the board
+                new_board = np.copy(board)
+                new_board[r][c] = 0
+                # Evaluate the score for the board after piece removal
+                score = evaluate_board(new_board, AI_PIECE, opponent_piece, phase)
+                if score > best_score:
+                    best_score = score
+                    best_piece = (r, c)
+    
+    return best_piece
 
 # GAME FUNCTIONS
 def create_board(): # X = null space
@@ -472,27 +497,19 @@ def remove_piece(board, piece):
                         draw_board(board)
         pygame.display.update()
     
-def ai_remove_piece(board, piece):
-    removing = True
-    player_pieces = []
-    for r in range(ROW_COUNT):
-        for c in range(COLUMN_COUNT):
-            if board[r][c] == piece:
-                player_pieces.append((r, c))
-    
-    player_piece_to_remove = random.choice(player_pieces)
-    while removing:
-        row, col = player_piece_to_remove
-        if is_mill(board, row, col, piece):
-            player_pieces.remove(player_piece_to_remove)
-            player_piece_to_remove = random.choice(player_pieces)
-            row, col = player_piece_to_remove
-        else:
-            board[row][col] = 0
-            removing = False
-    player_pieces.clear()
+def ai_remove_piece(board, piece, phase):
+    piece_to_remove = find_best_piece_to_remove(board, piece, phase)
+    if piece_to_remove is not None:
+        row, col = piece_to_remove
+        board[row][col] = 0
+        font = get_font(29, 1)
+        text = font.render(f"AI REMOVED PIECE AT ({row}, {col})", True, RED)
+        screen.blit(text, (screen_width//2 - text.get_width()//2, 60))
+    else:
+        font = get_font(29, 1)
+        text = font.render("NO PIECES TO REMOVE", True, RED)
+        screen.blit(text, (screen_width//2 - text.get_width()//2, 60))    
                 
-    
 def winning_move(piece_count):
     if piece_count <= 2:
         return True
@@ -501,13 +518,12 @@ def winning_move(piece_count):
 def game_over_screen(board, winner):
     game_bg = pygame.image.load("assets/GAME BG.png")
     screen.blit(game_bg, (0, 0))
-    font = get_font(29, 1)
     if winner == 1:
-        font = get_font(35, 1)
+        font = get_font(45, 1)
         text = font.render("PLAYER WINS", True, BLUE)
         screen.blit(text, (screen_width//2 - text.get_width()//2, 60))
     else: 
-        font = get_font(35, 1)
+        font = get_font(45, 1)
         text = font.render("AI WINS", True, RED)
         screen.blit(text, (screen_width//2 - text.get_width()//2, 60))
 
@@ -631,6 +647,7 @@ def six_men_morris():
     AI_COUNT = 0
     highlighted_piece = None
     phase_2 = False
+    phase = 0
 
     board = create_board()
     print_board(board)
@@ -670,6 +687,7 @@ def six_men_morris():
                                 PLAYER_COUNT += 1
                                 pygame.draw.rect(screen, BG, (20, 60, 300, 200))  
                                 if is_mill(board, row, col, PLAYER_PIECE):
+                                    pygame.draw.rect(screen, BG, (width_center, 60, board_width, SQUARESIZE))
                                     font = get_font(29, 1)
                                     text = font.render("MILL FORMED: REMOVE ONE OF AI PIECES", True, BLUE)
                                     screen.blit(text, (width_center - 10, 60))
@@ -704,11 +722,13 @@ def six_men_morris():
                                         drop_piece(board, row, col, PLAYER_PIECE) 
                                         if is_mill(board, row, col, PLAYER_PIECE):
                                             if is_mill(board, row, col, AI_PIECE):
+                                                pygame.draw.rect(screen, BG, (width_center, 60, board_width, SQUARESIZE))
                                                 font = get_font(29, 1)
                                                 text = font.render("NO AI PIECES CAN BE REMOVED", True, BLUE)
                                                 screen.blit(text, (screen_width//2 - text.get_width(), 60))
                                             else:
                                                 font = get_font(29, 1)
+                                                pygame.draw.rect(screen, BG, (width_center, 60, board_width, SQUARESIZE))
                                                 text = font.render("MILL FORMED: REMOVE ONE OF AI PIECES", True, BLUE)
                                                 screen.blit(text, (width_center - 10, 60))
                                                 remove_piece(board, AI_PIECE) # Update maximum AI pieces
@@ -729,10 +749,12 @@ def six_men_morris():
                                     drop_piece(board, row, col, PLAYER_PIECE) 
                                     if is_mill(board, row, col, PLAYER_PIECE):
                                         if is_mill(board, row, col, AI_PIECE):
+                                            pygame.draw.rect(screen, BG, (width_center, 60, board_width, SQUARESIZE))
                                             font = get_font(29, 1)
                                             text = font.render("NO AI PIECES CAN BE REMOVED", True, BLUE)
                                             screen.blit(text, (screen_width//2 - text.get_width(), 60))
                                         else:
+                                            pygame.draw.rect(screen, BG, (width_center, 60, board_width, SQUARESIZE))
                                             font = get_font(29, 1)
                                             text = font.render("MILL FORMED: REMOVE ONE OF AI PIECES", True, BLUE)
                                             screen.blit(text, (width_center - 10, 60))
@@ -759,6 +781,10 @@ def six_men_morris():
                     turn = random.randint(PLAYER_TURN, AI_TURN)
                     PLAYER_COUNT, AI_COUNT = 0, 0
                     PLAYER_MAX_PIECES, AI_MAX_PIECES = 6, 6
+                    highlighted_piece = None
+                    phase_2 = False
+                    phase = 0
+
                 if QUIT_BUTTON.checkForInput(GAME_MOUSE_POS):
                     pygame.quit()
                     sys.exit()                     
@@ -766,6 +792,7 @@ def six_men_morris():
             if turn == AI_TURN:   
                 if AI_COUNT < AI_MAX_PIECES:
                     print("Phase 1")
+                    phase = 1
                     move = find_best_move(board, 1)
                     ai_row, ai_col = move[0]
                     if is_valid_location(board, ai_row, ai_col):
@@ -778,7 +805,7 @@ def six_men_morris():
                         screen.blit(text, (screen_width//2 - text.get_width()//2, screen_height - 50)) 
                         AI_COUNT += 1  
                         if is_mill(board, ai_row, ai_col, AI_PIECE):
-                            ai_remove_piece(board, PLAYER_PIECE) # Update maximum AI pieces
+                            ai_remove_piece(board, PLAYER_PIECE, 1) # Update maximum AI pieces
                             PLAYER_MAX_PIECES -= 1
                             PLAYER_COUNT -= 1
                             print("PLAYER pieces left: ", PLAYER_MAX_PIECES) 
@@ -796,10 +823,12 @@ def six_men_morris():
                 if phase_2:
                     if AI_COUNT & AI_MAX_PIECES > 3:
                         print("Phase 2")
-                        old_loc, new_loc = find_best_move(board, 2)                        
+                        old_loc, new_loc = find_best_move(board, 2) 
+                        phase = 2                       
                     else:
                         print("Phase 3")
                         old_loc, new_loc = find_best_move(board, 3)
+                        phase = 3
                     
                     if old_loc and new_loc is not None:
                         ai_row, ai_col = old_loc
@@ -812,7 +841,7 @@ def six_men_morris():
                         text = font.render(f"AI MOVE: ({ai_row}, {ai_col}) to ({ai_new_row}, {ai_new_col})", True, RED)
                         screen.blit(text, (screen_width//2 - text.get_width()//2, screen_height - 50)) 
                         if is_mill(board, ai_new_row, ai_new_col, AI_PIECE):
-                            ai_remove_piece(board, PLAYER_PIECE) # Update maximum AI pieces      
+                            ai_remove_piece(board, PLAYER_PIECE, phase)    
                             PLAYER_MAX_PIECES -= 1
                             PLAYER_COUNT -= 1
                             print("PLAYER pieces left: ", PLAYER_MAX_PIECES)     
@@ -830,6 +859,30 @@ def six_men_morris():
         pygame.display.update()
 
 #  MENU FUNCTIONS
+def instructions():
+    instruc_bg = pygame.image.load("assets/INSTRUCTIONS.png")
+    screen.blit(instruc_bg, (0, 0))
+
+    while True:
+        CONTROLS_MOUSE = pygame.mouse.get_pos()
+        BACK_BUTTON = Button(image=None, pos=(1160, 650), 
+                            text_input="BACK", font=get_font(50, 1), base_color=WHITE, hovering_color=RED)
+
+        for button in [BACK_BUTTON]:
+            button.changeColor(CONTROLS_MOUSE)
+            button.update(screen)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if BACK_BUTTON.checkForInput(CONTROLS_MOUSE):
+                    main()
+            
+        pygame.display.flip()   	
+
+
 def get_font(size, type):
     if type == 1:
         return pygame.font.SysFont("Franklin Gothic Heavy", size)
@@ -843,13 +896,13 @@ def main():
     while running:
         MENU_MOUSE_POS = pygame.mouse.get_pos()
         PLAY_BUTTON = Button(image=None, pos=(screen_width//2 + 15, 385), 
-                            text_input="PLAY GAME", font=get_font(68, 1), base_color=WHITE, hovering_color=H_WHITE)
-        CONTROLS_BUTTON = Button(image=None, pos=(screen_width//2 + 15, 485), 
-                            text_input="CONTROLS", font=get_font(68, 1), base_color=WHITE, hovering_color=H_WHITE)
+                            text_input="PLAY GAME", font=get_font(68, 1), base_color=WHITE, hovering_color=RED)
+        INSTRUC_BUTTON = Button(image=None, pos=(screen_width//2 + 15, 485), 
+                            text_input="INSTRUCTIONS", font=get_font(68, 1), base_color=WHITE, hovering_color=RED)
         QUIT_BUTTON = Button(image=None, pos=(screen_width//2 + 15, 585), 
                             text_input="QUIT GAME", font=get_font(68, 1), base_color=RED, hovering_color=H_RED)
         
-        for button in [PLAY_BUTTON, CONTROLS_BUTTON, QUIT_BUTTON]:
+        for button in [PLAY_BUTTON, INSTRUC_BUTTON, QUIT_BUTTON]:
             button.changeColor(MENU_MOUSE_POS)
             button.update(screen)
 
@@ -860,8 +913,8 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
                     six_men_morris()
-                if CONTROLS_BUTTON.checkForInput(MENU_MOUSE_POS):
-                    pass
+                if INSTRUC_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    instructions()
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.quit()
                     sys.exit()
